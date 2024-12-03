@@ -154,38 +154,3 @@ void SDModule::testFileIO(File root, const char *path) {
         Serial.println("Failed to write test file.");
     }
 }
-
-
-// #include "SDFileUtils.h"
-
-// SDModule sd;  // 创建 SDModule 实例
-
-// void setup() {
-//     // 初始化串口通信
-//     Serial.begin(115200);
-
-//     // 初始化SD卡
-//     sd.initSd();
-
-//     // 列出根目录
-//     sd.listDir(SD.open("/"), "/", 2);
-
-//     // 创建目录
-//     sd.createDir(SD.open("/"), "/mydir");
-
-//     // 列出目录
-//     sd.listDir(SD.open("/"), "/", 2);
-
-//     // 写入文件
-//     sd.writeFile(SD.open("/"), "/hello.txt", "Hello, SD Card!");
-
-//     // 读取文件
-//     sd.readFile(SD.open("/"), "/hello.txt");
-
-//     // 删除文件
-//     sd.deleteFile(SD.open("/"), "/hello.txt");
-// }
-
-// void loop() {
-//     // 主程序循环
-// }

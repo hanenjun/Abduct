@@ -44,7 +44,13 @@ void BluetoothModule::stopScanning() {
 void BluetoothModule::connectToDevice(BLEAdvertisedDevice advertisedDevice) {
     Serial.print("Connecting to device: ");
     Serial.println(advertisedDevice.getName().c_str());
+    
     pClient = BLEDevice::createClient();  // 创建一个BLE客户端对象
+    if (!pClient) {
+        Serial.println("Failed to create BLE client.");
+        return;
+    }
+    
     if (pClient->connect(&advertisedDevice)) {  // 使用指针传递
         Serial.println("Connected to device.");
         printDeviceInfo();  // 打印设备信息
@@ -87,28 +93,3 @@ void BluetoothModule::printDeviceInfo() {
         Serial.println("No device connected.");
     }
 }
-
-
-// #include <Arduino.h>
-// #include "BluetoothModule.h"
-
-// BluetoothModule btModule;  // 创建BluetoothModule实例
-
-// void setup() {
-//     Serial.begin(115200);
-//     delay(2000);
-
-//     // 初始化蓝牙模块并设置设备名称
-//     btModule.initBLE("ESP32_BLE");
-
-//     // 开始扫描附近的BLE设备
-//     btModule.startScanning(5);  // 扫描5秒
-// }
-
-// void loop() {
-//     // 主循环中，断开连接或执行其他操作
-//     delay(10000);  // 延时10秒后断开连接
-//     btModule.disconnect();
-//     delay(5000);
-//     btModule.startScanning(5);  // 再次扫描5秒
-// }

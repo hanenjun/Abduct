@@ -1,3 +1,10 @@
 {
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "string": "cpp",
+        "chrono": "cpp",
+        "img_bluetooth_off.c": "cpp",
+        "img_wifi_disconnected.c": "cpp",
+        "lvgl.h": "c"
+    }
 }

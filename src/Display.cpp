@@ -2,13 +2,13 @@
 
 LGFX lcd; // 创建LGFX显示对象
 const unsigned int screenWidth = 240;                                                // 定义屏幕宽度为240像素
-const unsigned int screenHeight = 320;   
-const unsigned int lvBufferSize = screenWidth * screenHeight * (LV_COLOR_DEPTH / 8); // 计算缓冲区大小，根据屏幕分辨率和颜色深度
+const unsigned int screenHeight = 320;                                                // 定义屏幕高度为320像素
+const unsigned int lvBufferSize = screenWidth * screenHeight * (LV_COLOR_DEPTH / 8); // 计算缓冲区大小，根据屏幕分辨率和颜色深度                                                   // 定义缓冲区，存储像素数据
 uint8_t lvBuffer[lvBufferSize];                                                      // 定义缓冲区，存储像素数据
-                                            // 定义屏幕高度为320像素
-LGFX::LGFX()
-{
-    {
+
+LGFX::LGFX() {
+    // 构造函数，如果有需要，可以进行一些初始化工作
+      {
                 {
             // 配置 SPI 总线引脚
             auto cfg = _bus_instance.config();   // 获取总线配置
@@ -73,59 +73,58 @@ LGFX::LGFX()
     }
 }
 
-void LGFX::initDisplay()
-{
+void LGFX::initDisplay() {
     lcd.init();         // 初始化LCD屏幕
     lcd.setRotation(0); // 设置屏幕方向（0表示默认方向）
 }
 
-void LGFX::initLVGL()
-{
+void LGFX::initLVGL() {
     lv_init(); // 初始化LVGL库
 
-#if LV_USE_LOG != 0
-    lv_log_register_print_cb([](lv_log_level_t level, const char *buf)
-                             {
-                                 LV_UNUSED(level);
-                                 Serial.println(buf); // 输出日志信息到串口监视器
-                                 Serial.flush();      // 刷新串口缓冲区
-                             });
-#endif
+    #if LV_USE_LOG != 0
+    lv_log_register_print_cb([](lv_log_level_t level, const char *buf) {
+        LV_UNUSED(level);
+        Serial.println(buf); // 输出日志信息到串口监视器
+        Serial.flush();      // 刷新串口缓冲区
+    });
+    #endif
 
-    // 创建LVGL显示对象，并设置显示的宽度和高度
+    // 创建并配置显示对象
     static auto *lvDisplay = lv_display_create(screenWidth, screenHeight);
     lv_display_set_color_format(lvDisplay, LV_COLOR_FORMAT_RGB565); // 设置颜色格式为RGB565
-    lv_display_set_flush_cb(lvDisplay, [](lv_display_t *display, const lv_area_t *area, unsigned char *data)
-                            {
-                                uint32_t w = lv_area_get_width(area);                      // 获取区域宽度
-                                uint32_t h = lv_area_get_height(area);                     // 获取区域高度
-                                lv_draw_sw_rgb565_swap(data, w * h);                       // 交换像素数据（RGB565格式）
-                                lcd.pushImage(area->x1, area->y1, w, h, (uint16_t *)data); // 将图像数据推送到屏幕
-                                lv_display_flush_ready(display);                           // 完成刷新
-                            });
+    lv_display_set_flush_cb(lvDisplay, [](lv_display_t *display, const lv_area_t *area, unsigned char *data) {
+        uint32_t w = lv_area_get_width(area);  // 获取区域宽度
+        uint32_t h = lv_area_get_height(area); // 获取区域高度
+        lv_draw_sw_rgb565_swap(data, w * h);   // 交换像素数据（RGB565格式）
+        lcd.pushImage(area->x1, area->y1, w, h, (uint16_t *)data); // 将图像数据推送到屏幕
+        lv_display_flush_ready(display);       // 完成刷新
+    });
 
     // 设置显示的缓冲区
     lv_display_set_buffers(lvDisplay, lvBuffer, nullptr, lvBufferSize, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     // 创建触摸输入设备对象并设置触摸读取回调
     static lv_indev_t *indev_touchpad = lv_indev_create();
-    lv_indev_set_type(indev_touchpad, LV_INDEV_TYPE_POINTER); // 设置输入设备类型为指针
-    lv_indev_set_read_cb(indev_touchpad, touchpad_read);      // 设置读取触摸回调
+    lv_indev_set_type(indev_touchpad, LV_INDEV_TYPE_POINTER);  // 设置输入设备类型为指针
+    lv_indev_set_read_cb(indev_touchpad, touchpad_read);        // 设置读取触摸回调
 }
 
-void LGFX::touchpad_read(lv_indev_t *indev, lv_indev_data_t *data)
-{
+void LGFX::touchpad_read(lv_indev_t *indev, lv_indev_data_t *data) {
     int x, y;
     bool touched = lcd.getTouch(&x, &y); // 检测触摸屏是否被按下，并获取按下的坐标
 
-    if (touched)
-    {
+    if (touched) {
         data->state = LV_INDEV_STATE_PRESSED; // 如果触摸屏被按下，设置状态为按下
         data->point.x = screenWidth - x;      // 设置触摸点的X坐标
         data->point.y = screenHeight - y;     // 设置触摸点的Y坐标
-    }
-    else
-    {
+    } else {
         data->state = LV_INDEV_STATE_RELEASED; // 如果没有按下，设置状态为释放
     }
 }
+
+// 可选的资源清理函数（当不再需要时调用）
+void LGFX::deinitLVGL() {
+    // lv_disp_drv_unregister(&lvDisplay);  // 删除显示驱动
+    // lv_indev_drv_unregister(&indev_touchpad); // 删除输入设备驱动
+}
+

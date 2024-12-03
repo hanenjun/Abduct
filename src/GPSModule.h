@@ -4,27 +4,41 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-
-// 定义 SDA 和 SCL 引脚
-constexpr int RX_PIN = 16; 
-constexpr int TX_PIN = 17; 
-constexpr int PPS_PIN = 19; 
+// 默认引脚定义
+constexpr int DEFAULT_RX_PIN = 16;
+constexpr int DEFAULT_TX_PIN = 17;
+constexpr int DEFAULT_PPS_PIN = 19;
 
 class GPSModule
 {
 public:
-    GPSModule(int RX_PIN = RX_PIN, int TX_PIN = TX_PIN, int PPS_PIN = PPS_PIN);
-    void initGPS(long baudRate = 9600, int RX_PIN = TX_PIN, int TX_PIN = PPS_PIN);
+    // 构造函数
+    GPSModule(int RX_PIN = DEFAULT_RX_PIN, int TX_PIN = DEFAULT_TX_PIN, int PPS_PIN = DEFAULT_PPS_PIN);
+
+    // GPS 初始化
+    void initGPS(long baudRate = 9600);
+
+    // 更新数据
     void update();
+
+    // 解析NMEA数据
     void parseNMEAData(String data);
+
+    // 解析不同类型的NMEA语句
     void parseGGA(String ggaData);
     void parseGSV(String gsvData);
     void parseGSA(String gsaData);
-
+    void parseRMC(String rmcData);
+    String getGPSTimeInfo();
+    static void ppsISR();
+    String gpsTime;
+    bool isState = false;
 private:
-    SoftwareSerial mySerial;
-    String nmeaData;
-    int _PPS_PIN;
+    SoftwareSerial mySerial;           // 创建软件串口对象
+    String nmeaData;                   // 存储NMEA数据
+    int _PPS_PIN;                      // PPS引脚（如果有用到）
+    unsigned long lastUpdateTime;    // Last time NFC was checked
+    const unsigned long initTimeout; // Interval for non-blocking NFC checking
 };
 
 #endif // GPS_TOOL_H

@@ -1,38 +1,76 @@
 #include "GPSModule.h"
 
-GPSModule::GPSModule(int RX_PIN, int TX_PIN, int PPS_PIN) 
-    : mySerial(RX_PIN, TX_PIN), _PPS_PIN(PPS_PIN) { // 初始化串口
-    // 这里不传递 PPS_PIN 到串口构造函数
+GPSModule::GPSModule(int RX_PIN, int TX_PIN, int PPS_PIN)
+    : mySerial(RX_PIN, TX_PIN), _PPS_PIN(PPS_PIN), lastUpdateTime(0), initTimeout(3000)
+{
+    pinMode(_PPS_PIN, INPUT);                                         // 设置 PPS 引脚为输入模式
+    attachInterrupt(digitalPinToInterrupt(_PPS_PIN), ppsISR, RISING); // 设置 PPS 引脚触发中断
+
+    // 初始化 GPS 模块的串口
 }
-void GPSModule::initGPS(long baudRate, int RX_PIN, int TX_PIN) {
-    mySerial.begin(baudRate, SWSERIAL_8N1, RX_PIN, TX_PIN);  // Initialize serial communication with GPS
-    delay(3000);  // Wait for GPS module to initialize
+
+void GPSModule::initGPS(long baudRate)
+{
+    mySerial.begin(baudRate);  // 初始化 GPS 串口，RX_PIN 和 TX_PIN 在构造时已经传递
+    lastUpdateTime = millis(); // 记录初始化的起始时间
     Serial.println("ATGM336H GPS Module Test");
 }
+// PPS 中断服务例程
+void GPSModule::ppsISR() {
+    // 处理 PPS 信号，每当 PPS 信号到达时，会触发这个中断
+    Serial.println("PPS signal received, GPS time synchronized.");
+    // 可以在此处进行同步逻辑，例如更新时间戳、处理 GPS 时间等
+}
+void GPSModule::update()
+{
+    // 如果初始化超时，则不再继续
+    if (millis() - lastUpdateTime > initTimeout)
+    {
+        Serial.println("GPS initialization timed out.");
+        return;
+    }
 
-void GPSModule::update() {
-    while (mySerial.available()) {
+    while (mySerial.available())
+    {
         char c = mySerial.read();
-        nmeaData += c;  // Collect each character
+        nmeaData += c; // 收集字符数据
 
-        if (c == '\n') {
-            parseNMEAData(nmeaData);  // Parse the NMEA data
-            nmeaData = "";  // Clear the buffer for the next data
+        if (c == '\n')
+        {
+            isState = true;
+            parseNMEAData(nmeaData); // 解析 NMEA 数据
+            nmeaData = "";           // 清空缓冲区，准备下一个数据
         }
     }
 }
 
-void GPSModule::parseNMEAData(String data) {
-    if (data.startsWith("$GPGGA")) {
-        parseGGA(data);  // Parse GGA sentence
-    } else if (data.startsWith("$GPGSV")) {
-        parseGSV(data);  // Parse GSV sentence
-    } else if (data.startsWith("$GPGSA")) {
-        parseGSA(data);  // Parse GSA sentence
+// 获取格式化的 GPS 时间
+String GPSModule::getGPSTimeInfo()
+{
+    return gpsTime; // 返回保存的格式化时间
+}
+void GPSModule::parseNMEAData(String data)
+{
+    if (data.startsWith("$GPGGA"))
+    {
+        parseGGA(data); // 解析 GGA 语句
+    }
+    else if (data.startsWith("$GPGSV"))
+    {
+        parseGSV(data); // 解析 GSV 语句
+    }
+    else if (data.startsWith("$GPGSA"))
+    {
+        parseGSA(data); // 解析 GSA 语句
+    }
+    else if (data.startsWith("$GPRMC"))
+    {
+        parseRMC(data); // 解析 RMC 语句
     }
 }
 
-void GPSModule::parseGGA(String ggaData) {
+void GPSModule::parseGGA(String ggaData)
+{
     int latStart = ggaData.indexOf(",") + 1;
     int latEnd = ggaData.indexOf(",", latStart);
     String latitude = ggaData.substring(latStart, latEnd);
@@ -47,7 +85,8 @@ void GPSModule::parseGGA(String ggaData) {
     Serial.println(longitude);
 }
 
-void GPSModule::parseGSV(String gsvData) {
+void GPSModule::parseGSV(String gsvData)
+{
     int numSatellites = 0;
     int startIndex = gsvData.indexOf(",") + 1;
     int endIndex = gsvData.indexOf(",", startIndex);
@@ -56,22 +95,23 @@ void GPSModule::parseGSV(String gsvData) {
     Serial.print("Number of Satellites in view: ");
     Serial.println(numSatellites);
 
-    for (int i = 0; i < numSatellites; i++) {
+    for (int i = 0; i < numSatellites; i++)
+    {
         int satelliteIndex = gsvData.indexOf(",", endIndex) + 1;
         endIndex = gsvData.indexOf(",", satelliteIndex);
         String satelliteID = gsvData.substring(satelliteIndex, endIndex);
 
         satelliteIndex = gsvData.indexOf(",", endIndex) + 1;
         endIndex = gsvData.indexOf(",", satelliteIndex);
-        String elevation = gsvData.substring(satelliteIndex, endIndex);  // Satellite elevation
+        String elevation = gsvData.substring(satelliteIndex, endIndex);
 
         satelliteIndex = gsvData.indexOf(",", endIndex) + 1;
         endIndex = gsvData.indexOf(",", satelliteIndex);
-        String azimuth = gsvData.substring(satelliteIndex, endIndex);  // Satellite azimuth
+        String azimuth = gsvData.substring(satelliteIndex, endIndex);
 
         satelliteIndex = gsvData.indexOf(",", endIndex) + 1;
         endIndex = gsvData.indexOf("*", satelliteIndex);
-        String signalStrength = gsvData.substring(satelliteIndex, endIndex);  // Signal strength
+        String signalStrength = gsvData.substring(satelliteIndex, endIndex);
 
         Serial.print("Satellite ID: ");
         Serial.print(satelliteID);
@@ -84,28 +124,33 @@ void GPSModule::parseGSV(String gsvData) {
     }
 }
 
-void GPSModule::parseGSA(String gsaData) {
+void GPSModule::parseGSA(String gsaData)
+{
     int modeStart = gsaData.indexOf(",") + 1;
     int modeEnd = gsaData.indexOf(",", modeStart);
-    String mode = gsaData.substring(modeStart, modeEnd);  // Mode: 1 = no fix, 2 = 2D fix, 3 = 3D fix
+    String mode = gsaData.substring(modeStart, modeEnd);
 
     int fixTypeStart = gsaData.indexOf(",", modeEnd + 1) + 1;
     int fixTypeEnd = gsaData.indexOf(",", fixTypeStart);
-    String fixType = gsaData.substring(fixTypeStart, fixTypeEnd);  // Fix type
+    String fixType = gsaData.substring(fixTypeStart, fixTypeEnd);
 
     Serial.print("Fix Status: ");
     Serial.println(fixType);
 }
 
+void GPSModule::parseRMC(String rmcData)
+{
+    // 解析 RMC 语句，提取位置和时间信息
+    int timeStart = rmcData.indexOf(",") + 1;
+    int timeEnd = rmcData.indexOf(",", timeStart);
+    String time = rmcData.substring(timeStart, timeEnd);
 
+    // 格式化时间为 HH:MM:SS
+    String hours = time.substring(0, 2);
+    String minutes = time.substring(2, 4);
+    String seconds = time.substring(4, 6);
 
-// GPSModule gps;  // Create GPS object with RX, TX, and PPS pins
-
-// void setup() {
-//   Serial.begin(115200);  // Initialize the serial monitor for debugging output
-//   gps.begin(9600);  // Initialize GPS module with default baud rate 9600
-// }
-
-// void loop() {
-//   gps.update();  // Continuously update and parse GPS data
-// }
+    gpsTime = hours + ":" + minutes + ":" + seconds; // 保存为格式化的时间
+    Serial.print("Time: ");
+    Serial.println(gpsTime);
+}
